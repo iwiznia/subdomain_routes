@@ -3,6 +3,10 @@ module SubdomainRoutes
     subdomain.to_s =~ /^([a-z0-9]|[a-z0-9][-a-z0-9]{0,61}[a-z0-9])*$/
   end
 
+  def self.valid_host?(host)
+    host.to_s =~ /([a-zA-Z0-9](-[a-zA-Z0-0]+)?\.?)+/
+  end
+
   # # Alternatively, we use URI::parse instead. This gives more lenient subdomains however:
   # def self.valid_subdomain?(subdomain)
   #   URI.parse "http://#{subdomain}.example.com"

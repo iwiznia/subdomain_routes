@@ -8,7 +8,7 @@ module SubdomainRoutes
       end
       
       def extract_request_environment_with_subdomains(request)
-        extract_request_environment_without_subdomains(request).merge(:subdomain => subdomain_for_host(request.host))
+        extract_request_environment_without_subdomains(request).merge(:subdomain => subdomain_for_host(request.host), :host => request.domain)
       end
       
       def add_route_with_subdomains(*args)
@@ -19,18 +19,25 @@ module SubdomainRoutes
           options[:conditions][:subdomains] = subdomains
           options[:requirements][:subdomains] = subdomains
         end
+        if hosts = options.delete(:hosts)
+          options[:conditions] ||= {}
+          options[:requirements] ||= {}
+          options[:conditions][:hosts] = hosts
+          options[:requirements][:hosts] = hosts
+        end
         with_options(options) { |routes| routes.add_route_without_subdomains(*args) }
       end
 
       def raise_named_route_error_with_subdomains(options, named_route, named_route_name)
-        unless named_route.conditions[:subdomains].is_a?(Symbol)
+        unless named_route.conditions[:subdomains].is_a?(Symbol) && named_route.conditions[:hosts].is_a?(Symbol)
           raise_named_route_error_without_subdomains(options, named_route, named_route_name)
         else
           begin
             options.delete(named_route.conditions[:subdomains])
+            options.delete(named_route.conditions[:hosts])
             raise_named_route_error_without_subdomains(options, named_route, named_route_name)
           rescue ActionController::RoutingError => e
-            e.message << " You may also need to specify #{named_route.conditions[:subdomains].inspect} for the subdomain."
+            e.message << " You may also need to specify #{named_route.conditions[:subdomains].inspect} for the subdomain or specify #{named_route.conditions[:hosts].inspect} for the host"
             raise e
           end
         end
@@ -54,6 +61,12 @@ module SubdomainRoutes
           when Symbol
             result << "(subdomain = env[:subdomain] unless env[:subdomain].blank?)"
           end
+          case conditions[:hosts]
+            when Array
+              result << "conditions[:hosts].include?(env[:host])"
+            when Symbol
+              result << "(subdomain = env[:hosts] unless env[:host].blank?)"
+          end
         end
       end
       
@@ -62,12 +75,16 @@ module SubdomainRoutes
         if conditions[:subdomains].is_a?(Symbol)
           results << "return [nil,nil] unless hash.delete(#{conditions[:subdomains].inspect})"
         end
+        if conditions[:hosts].is_a?(Symbol)
+          results << "return [nil,nil] unless hash.delete(#{conditions[:hosts].inspect})"
+        end
         results.compact * "\n"
       end
                   
       def segment_keys_with_subdomains
         segment_keys_without_subdomains.tap do |result|
           result.unshift(conditions[:subdomains]) if conditions[:subdomains].is_a? Symbol
+          result.unshift(conditions[:hosts]) if conditions[:hosts].is_a? Symbol
         end
       end
       
@@ -77,12 +94,17 @@ module SubdomainRoutes
             result << conditions[:subdomains]
             result.uniq!
           end
+          if conditions[:hosts].is_a? Symbol
+            result << conditions[:hosts]
+            result.uniq!
+          end
         end
       end
       
       def recognition_extraction_with_subdomains
         recognition_extraction_without_subdomains.tap do |result|
           result.unshift "\nparams[#{conditions[:subdomains].inspect}] = subdomain\n" if conditions[:subdomains].is_a? Symbol
+          result.unshift "\nparams[#{conditions[:hosts].inspect}] = host\n" if conditions[:hosts].is_a? Symbol
         end
       end
       

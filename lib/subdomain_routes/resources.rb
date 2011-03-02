@@ -2,11 +2,11 @@ module SubdomainRoutes
   module Resources
     def self.included(base)
       base.alias_method_chain :action_options_for, :subdomains
-      base::INHERITABLE_OPTIONS << :subdomains
+      base::INHERITABLE_OPTIONS << :subdomains << :hosts
     end
     
     def action_options_for_with_subdomains(action, resource, *args)
-      action_options_for_without_subdomains(action, resource, *args).merge(:subdomains => resource.options[:subdomains])
+      action_options_for_without_subdomains(action, resource, *args).merge(:subdomains => resource.options[:subdomains], :hosts => resource.options[:hosts])
     end
     private :action_options_for_with_subdomains
   end
