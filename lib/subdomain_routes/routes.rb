@@ -8,7 +8,7 @@ module SubdomainRoutes
       end
       
       def extract_request_environment_with_subdomains(request)
-        extract_request_environment_without_subdomains(request).merge(:subdomain => subdomain_for_host(request.host), :host => request.domain)
+        extract_request_environment_without_subdomains(request).merge(:subdomain => subdomain_for_host(request.host), :host => domain_for_host(request.domain))
       end
       
       def add_route_with_subdomains(*args)
