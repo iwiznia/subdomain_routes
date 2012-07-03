@@ -57,15 +57,15 @@ module SubdomainRoutes
         recognition_conditions_without_subdomains.tap do |result|
           case conditions[:subdomains]
           when Array
-            result << "(subdomain = env[:subdomain] if conditions[:subdomains].include?(env[:subdomain]))"
+            result << "conditions[:subdomains].include?(env[:subdomain])"
           when Symbol
             result << "(subdomain = env[:subdomain] unless env[:subdomain].blank?)"
           end
           case conditions[:hosts]
             when Array
-              result << "(host = env[:host] if conditions[:hosts].include?(env[:host]))"
+              result << "conditions[:hosts].include?(env[:host])"
             when Symbol
-              result << "(host = env[:host] unless env[:host].blank?)"
+              result << "(subdomain = env[:hosts] unless env[:host].blank?)"
           end
         end
       end
@@ -103,11 +103,11 @@ module SubdomainRoutes
 
       def recognition_extraction_with_subdomains
         recognition_extraction_without_subdomains.tap do |result|
-          result.unshift "\nparams[:subdomains] = subdomain\n" if conditions[:subdomains]
-          result.unshift "\nparams[:hosts] = host\n" if conditions[:hosts]
+          result.unshift "\nparams[#{conditions[:subdomains].inspect}] = subdomain\n" if conditions[:subdomains].is_a? Symbol
+          result.unshift "\nparams[#{conditions[:hosts].inspect}] = host\n" if conditions[:hosts].is_a? Symbol
         end
       end
-
+      
       def reserved_subdomains
         conditions[:subdomains].is_a?(Array) ? conditions[:subdomains] : []
       end
