@@ -2,15 +2,15 @@ module SubdomainRoutes
   module Routing
     module RouteSet
       include SplitHost
-      
+
       def self.included(base)
         [ :extract_request_environment, :add_route, :raise_named_route_error ].each { |method| base.alias_method_chain method, :subdomains }
       end
-      
+
       def extract_request_environment_with_subdomains(request)
         extract_request_environment_without_subdomains(request).merge(:subdomain => subdomain_for_host(request.host), :host => domain_for_host(request.domain))
       end
-      
+
       def add_route_with_subdomains(*args)
         options = args.extract_options!
         if subdomains = options.delete(:subdomains)
@@ -42,34 +42,34 @@ module SubdomainRoutes
           end
         end
       end
-      
+
       def reserved_subdomains
         routes.map(&:reserved_subdomains).flatten.uniq
       end
     end
-  
+
     module Route
       def self.included(base)
         [ :recognition_conditions, :generation_extraction, :segment_keys, :significant_keys, :recognition_extraction ].each { |method| base.alias_method_chain method, :subdomains }
       end
-      
+
       def recognition_conditions_with_subdomains
         recognition_conditions_without_subdomains.tap do |result|
           case conditions[:subdomains]
           when Array
-            result << "conditions[:subdomains].include?(env[:subdomain])"
+            result << "(subdomain = env[:subdomain] if conditions[:subdomains].include?(env[:subdomain]))"
           when Symbol
             result << "(subdomain = env[:subdomain] unless env[:subdomain].blank?)"
           end
           case conditions[:hosts]
             when Array
-              result << "conditions[:hosts].include?(env[:host])"
+              result << "(host = env[:host] if conditions[:hosts].include?(env[:host]))"
             when Symbol
-              result << "(subdomain = env[:hosts] unless env[:host].blank?)"
+              result << "(host = env[:host] unless env[:host].blank?)"
           end
         end
       end
-      
+
       def generation_extraction_with_subdomains
         results = [ generation_extraction_without_subdomains ]
         if conditions[:subdomains].is_a?(Symbol)
@@ -80,14 +80,14 @@ module SubdomainRoutes
         end
         results.compact * "\n"
       end
-                  
+
       def segment_keys_with_subdomains
         segment_keys_without_subdomains.tap do |result|
           result.unshift(conditions[:subdomains]) if conditions[:subdomains].is_a? Symbol
           result.unshift(conditions[:hosts]) if conditions[:hosts].is_a? Symbol
         end
       end
-      
+
       def significant_keys_with_subdomains
         significant_keys_without_subdomains.tap do |result|
           if conditions[:subdomains].is_a? Symbol
@@ -100,14 +100,14 @@ module SubdomainRoutes
           end
         end
       end
-      
+
       def recognition_extraction_with_subdomains
         recognition_extraction_without_subdomains.tap do |result|
-          result.unshift "\nparams[#{conditions[:subdomains].inspect}] = subdomain\n" if conditions[:subdomains].is_a? Symbol
-          result.unshift "\nparams[#{conditions[:hosts].inspect}] = host\n" if conditions[:hosts].is_a? Symbol
+          result.unshift "\nparams[:subdomains] = subdomain\n" if conditions[:subdomains]
+          result.unshift "\nparams[:hosts] = host\n" if conditions[:hosts]
         end
       end
-      
+
       def reserved_subdomains
         conditions[:subdomains].is_a?(Array) ? conditions[:subdomains] : []
       end
